@@ -1,0 +1,106 @@
+//creating a database
+docker run --name paytmnextjs -e POSTGRES_USER=sudhakargouda -e POSTGRES_PASSWORD=patil -e POSTGRES_DB=paytmnext -p 5432:5432 -d postgres
+
+//connection database
+DATABASE_URL="postgresql://sudhakargouda:patil@localhost:5432/paytmnext?schema=public"
+
+//Entering into databse using docker
+// docker exec -it paytmnextjs psql -U sudhakargouda -d paytmnext
+
+
+Using mysql
+
+npm install mysql2
+
+npm install --save-dev @types/mysql2 => this one is not needed as of nows it automatically takes types
+
+docker run --name paytmmysql \
+  -e MYSQL_ROOT_PASSWORD=rootpass \
+  -e MYSQL_DATABASE=paytmnextmysql \
+  -e MYSQL_USER=sudhakargoudapatil \
+  -e MYSQL_PASSWORD=patil12 \
+  -p 3306:3306 \
+  -d mysql:8.0
+
+connection to databse is this one 
+import mysql, { Connection } from 'mysql2/promise';
+
+export async function createConnection(): Promise<Connection> {
+  return await mysql.createConnection({
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USER || 'sudhakargouda',
+    password: process.env.DB_PASSWORD || 'patil',
+    database: process.env.DB_NAME || 'paytmnextmysql',
+  });
+}
+
+entering into database 
+docker exec -it paytmmysql mysql -u sudhakargoudapatil -p
+
+CREATE TABLE User (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  firstName VARCHAR(255) NOT NULL,
+  lastName VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE Account (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  balance INT NOT NULL,
+  userId INT UNIQUE NOT NULL,
+  FOREIGN KEY (userId) REFERENCES User(id)
+);
+
+db.execute() — Return Type
+When you use:
+const [result] = await db.execute(query, params);
+What you get back depends on the type of query (SELECT, INSERT, etc).
+
+SELECT Query
+const [rows] = await db.execute<RowDataPacket[]>('SELECT * FROM User WHERE id = ?', [1]);
+rows → an array of objects, one per row returned.
+Each object has keys matching the column names.
+example
+[
+  {
+    id: 1,
+    username: 'john@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    ...
+  }
+]
+
+INSERT Query
+const [result] = await db.execute<ResultSetHeader>('INSERT INTO User (...) VALUES (...)');
+result is an object with metadata.
+Useful fields:
+result.insertId      // The ID of the newly inserted row
+result.affectedRows  // How many rows were inserted/updated/deleted
+result.warningStatus // Any warnings returned
+Exmaple:
+{
+  fieldCount: 0,
+  affectedRows: 1,
+  insertId: 7,
+  serverStatus: 2,
+  warningCount: 0,
+  message: '',
+  protocol41: true,
+  changedRows: 0
+}
+
+UPDATE / DELETE Query
+const [result] = await db.execute<ResultSetHeader>('DELETE FROM User WHERE id = ?', [7]);
+No insertId, but you still get:
+affectedRows: how many rows were deleted
+changedRows: how many rows were actually changed (for UPDATE)
+
+Summary Table
+Query Type	    Return Value (1st element of [result])	      Key Fields
+SELECT	            RowDataPacket[]	                        rows[i].columnName
+INSERT	            ResultSetHeader	                        insertId, affectedRows
+UPDATE	            ResultSetHeader	                        affectedRows, changedRows
+DELETE	            ResultSetHeader	                        affectedRows
